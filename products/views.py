@@ -7,7 +7,6 @@ from models import *
 from serializers import *
 import json
 from django.db import connection
-#from django.db.models.signals import class_prepared
 
 model_dict = {
     "cars": Car,
@@ -19,22 +18,22 @@ model_dict = {
 
 @csrf_exempt
 def cars(request, pk=None):
-    return generic_rest_view(request, Car, CarSerializer, pk=pk)
+    return generic_rest_view(request, Car, CarSerializer, CarAttribute, pk=pk)
 
 
 @csrf_exempt
 def furniture(request, pk=None):
-    return generic_rest_view(request, Furniture, FurnitureSerializer, pk=pk)
+    return generic_rest_view(request, Furniture, FurnitureSerializer, FurnitureAttribute, pk=pk)
 
 
 @csrf_exempt
 def audiobooks(request, pk=None):
-    return generic_rest_view(request, Audiobook, AudiobookSerializer, pk=pk)
+    return generic_rest_view(request, Audiobook, AudiobookSerializer, AudiobookAttribute, pk=pk)
 
 
 @csrf_exempt
 def holograms(request, pk=None):
-    return generic_rest_view(request, Hologram, HologramSerializer, pk=pk)
+    return generic_rest_view(request, Hologram, HologramSerializer, HologramAttribute, pk=pk)
 
 
 @csrf_exempt
@@ -48,13 +47,12 @@ def add_attribute(request, field_name):
             "field_name": field_name
         }
 
-    try:
-        Attribute.objects.get(
-            model_type=model.__name__,
-            name=field_name)
+    if Attribute.objects.all().filter(
+        model_type=model.__name__,
+        name=field_name):
         resp['status'] = "Failure"
         resp['error_msg'] = "%s already has an attribute named '%s'" % (model.__name__, field_name)
-    except Attribute.DoesNotExist:
+    else:
         attribute = Attribute(
             model_type=model.__name__,
             name=field_name)
@@ -62,6 +60,8 @@ def add_attribute(request, field_name):
         resp['status'] = "Success"
 
     return JSONResponse(resp)
+
+
 
 @csrf_exempt
 def remove_attribute(request, field_name):
@@ -87,7 +87,7 @@ def remove_attribute(request, field_name):
     return JSONResponse(resp)
 
 
-def generic_rest_view(request, model, model_serializer, pk=None):
+def generic_rest_view(request, model, model_serializer, attribute_model, pk=None):
     if pk:
         try:
             model_instance = model.objects.get(pk=pk)
@@ -97,7 +97,7 @@ def generic_rest_view(request, model, model_serializer, pk=None):
         if request.method == 'GET':
             # Read
             serializer = model_serializer(model_instance)
-            append_attributes(model, model_instance, serializer.data)
+            append_attributes_to_model(model, model_instance, attribute_model, serializer.data)
             return JSONResponse(serializer.data)
 
         elif request.method == 'PUT':
@@ -131,12 +131,9 @@ def generic_rest_view(request, model, model_serializer, pk=None):
             else:
                 # List
                 models = model.objects.all()
-            # if attribute_field_dict:
-            #     AttributeInstance.objects.all().\
-            #         filter(attribute__model_type=model.__name__,
-            #             )
             serializer = model_serializer(models, many=True)
-            print serializer.data
+            for model_i, data in zip(models, serializer.data):
+                append_attributes_to_model(model, model_i, attribute_model, data)
             return JSONResponse(serializer.data)
         elif request.method == 'POST':
             # Create
@@ -149,11 +146,14 @@ def generic_rest_view(request, model, model_serializer, pk=None):
                 return JSONResponse(serializer.errors, status=400)
 
 
-def append_attributes(model, model_instance, data):
-    attributes = Attribute.objects.all().filter(model_type=model.__name__)
-    for attribute in attributes:
-        attribute_instances = attribute.attributeinstance_set.all().\
-            filter(model_id = model_instance.id)
+def append_attributes_to_model(model, model_instance, attribute_model, data):
+    for attribute in Attribute.objects.all().filter(model_type=model.__name__):
+        attribute_filters = {
+            "attribute__model_type": model.__name__,
+            "attribute__name": attribute.name,
+            "%s__pk" % model.__name__.lower(): model_instance.id
+        }
+        attribute_instances = attribute_model.objects.all().filter( **attribute_filters )
         for attribute_instance in attribute_instances:
             data[attribute.name] = attribute_instance.value
 
