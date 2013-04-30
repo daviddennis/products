@@ -33,8 +33,17 @@ class Hologram(models.Model):
 	def __unicode__(self):
 		return self.name
 
-class ExtraAttribute(models.Model):
-	model_name = models.CharField(max_length=500, null=False)
+class Attribute(models.Model):
+	model_type = models.CharField(max_length=500, null=False)
+	name = models.CharField(max_length=500, null=False)
+
+	def __unicode__(self):
+		return "%s:%s" % (self.model_type, self.name)
+
+class AttributeInstance(models.Model):
+	attribute = models.ForeignKey(Attribute)
 	model_id = models.IntegerField(null=False)
-	attribute_name = models.CharField(max_length=500, null=False)
-	attribute_value = models.CharField(max_length=500, null=False)
+	value = models.CharField(max_length=500, null=False)
+
+	def __unicode__(self):
+		return "%s:%s:%s" % (self.attribute.model_type, self.model_id, self.value)
