@@ -5,6 +5,7 @@ from django.contrib import admin
 admin.autodiscover()
 
 urlpatterns = patterns('products.views',
+    url(r'^$', 'show_products'),
     url(r'^cars$', 'cars'),
     url(r'^cars/(?P<pk>\d+)$', 'cars'),
     url(r'^cars/add/(?P<field_name>\w+)$', 'add_attribute'),    

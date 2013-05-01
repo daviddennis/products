@@ -16,6 +16,14 @@ model_dict = {
     "audiobooks": Audiobook
     }
 
+@csrf_exempt
+def show_products(request):
+    return JSONResponse({
+            'cars': 'http://173.255.235.144/cars',
+            'furniture': 'http://173.255.235.144/furniture',
+            'holograms': 'http://173.255.235.144/holograms',
+            'audiobooks': 'http://173.255.235.144/audiobooks',
+        })
 
 @csrf_exempt
 def cars(request, pk=None):
